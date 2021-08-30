@@ -2,7 +2,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from database import db
 
-# many-to-many relationship code
+# Define a many-to-many relationship
 links = db.Table(
     "link",
     db.Column(

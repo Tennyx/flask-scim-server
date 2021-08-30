@@ -4,8 +4,13 @@ from functools import wraps
 from database import db
 from models import User, Group
 
-# factory method avoids circular import error
+
 def create_app():
+    """
+    Instantiate Flask
+
+    Implemented as a factory method to avoid a circular import error.
+    """
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://localhost/scim"
     db.init_app(app)
@@ -14,8 +19,10 @@ def create_app():
 
 app = create_app()
 
-# check authentication header
+
 def auth_required(func):
+    """Flask decorator to require the presence of a valid Authorization header."""
+
     @wraps(func)
     def check_auth(*args, **kwargs):
         if request.headers["Authorization"].split("Bearer ")[1] == "123456789":
@@ -26,10 +33,10 @@ def auth_required(func):
     return check_auth
 
 
-# get users
 @app.route("/scim/v2/Users", methods=["GET"])
 @auth_required
 def get_users():
+    """Get SCIM Users"""
     start_index = 1
     count = None
 
@@ -69,10 +76,10 @@ def get_users():
     )
 
 
-# get user
 @app.route("/scim/v2/Users/<string:user_id>", methods=["GET"])
 @auth_required
 def get_user(user_id):
+    """Get SCIM User"""
     user = User.query.get(user_id)
     if not user:
         return make_response(
@@ -88,10 +95,10 @@ def get_user(user_id):
     return jsonify(user.serialize())
 
 
-# create user
 @app.route("/scim/v2/Users", methods=["POST"])
 @auth_required
 def create_user():
+    """Create SCIM User"""
     active = request.json.get("active")
     displayName = request.json.get("displayName")
     emails = request.json.get("emails")
@@ -153,10 +160,10 @@ def create_user():
             return str(e)
 
 
-# update user
 @app.route("/scim/v2/Users/<string:user_id>", methods=["PUT"])
 @auth_required
 def update_user(user_id):
+    """Update SCIM User"""
     user = User.query.get(user_id)
 
     if not user:
@@ -189,10 +196,10 @@ def update_user(user_id):
         return make_response(jsonify(user.serialize()), 200)
 
 
-# deactivate user
 @app.route("/scim/v2/Users/<string:user_id>", methods=["PATCH"])
 @auth_required
 def deactivate_user(user_id):
+    """Deactivate SCIM User"""
     is_user_active = request.json["Operations"][0]["value"]["active"]
     user = User.query.get(user_id)
     user.active = is_user_active
@@ -201,38 +208,38 @@ def deactivate_user(user_id):
     return make_response("", 204)
 
 
-# delete user
 @app.route("/scim/v2/Users/<string:user_id>", methods=["DELETE"])
 @auth_required
 def delete_user(user_id):
+    """Delete SCIM User"""
     user = User.query.get(user_id)
     db.session.delete(user)
     db.session.commit()
     return make_response("", 204)
 
 
-# get groups
 @app.route("/scim/v2/Groups", methods=["GET"])
 @auth_required
 def get_groups():
+    """Get SCIM Groups"""
     groups = Group.query.all()
     return jsonify([e.serialize() for e in groups])
 
 
-# get group
 @app.route("/scim/v2/Groups/<string:group_id>", methods=["GET"])
 @auth_required
 def get_group(group_id):
+    """Get SCIM Group"""
     group = Group.query.get(group_id)
     if not group:
         abort(404)
     return jsonify(group.serialize())
 
 
-# create group
 @app.route("/scim/v2/Groups", methods=["POST"])
 @auth_required
 def create_group():
+    """Create SCIM Group"""
     displayName = request.json["displayName"]
     members = request.json["members"]
 
@@ -247,13 +254,14 @@ def create_group():
         return str(e)
 
 
-# update group
 @app.route("/scim/v2/Groups/<string:group_id>", methods=["PATCH", "PUT"])
 @auth_required
 def update_group(group_id):
     """
-    accounting for the different requests sent by okta depending
-    on if it was created via template or app wizard integration.
+    Update SCIM Group
+
+    Accounts for the different requests sent by Okta depending
+    on if the group was created via template or app wizard integration.
     """
     if "members" in request.json:
         members = request.json["members"]
@@ -276,10 +284,10 @@ def update_group(group_id):
     return make_response(jsonify(group.serialize()), 200)
 
 
-# delete group
 @app.route("/scim/v2/Groups/<string:group_id>", methods=["DELETE"])
 @auth_required
 def delete_group(group_id):
+    """Delete SCIM Group"""
     group = Group.query.get(group_id)
     db.session.delete(group)
     db.session.commit()
